@@ -47,8 +47,8 @@
     {
       "name": "japan",
       "label": "Japan",
-      "default_language": "ja",
-      "languages": ["ja", "en"],
+      "default_language": "bn",
+      "languages": ["bn", "ja", "en"],
       "enabled": true,
       "videos_per_day": 1,
       "news_feeds": [
@@ -66,8 +66,8 @@
   ],
   "providers": {
     "content": {
-      "primary": "gemini",
-      "fallback": ["template", "openai"]
+      "primary": "openai",
+      "fallback": ["gemini", "template"]
     },
     "video": {
       "primary": "slideshow",

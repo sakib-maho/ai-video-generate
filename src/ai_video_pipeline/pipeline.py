@@ -7,6 +7,7 @@ from typing import Any
 
 from .content import ContentService
 from .fact_check import FactCheckService
+from .images import SceneImageService
 from .logging_utils import PipelineLogger
 from .models import (
     CountryRunArtifacts,
@@ -49,6 +50,7 @@ class DailyVideoPipeline:
         self.storage = Storage(project_root / config.database_path)
         self.content_service = ContentService(project_root)
         self.fact_check_service = FactCheckService(project_root)
+        self.scene_image_service = SceneImageService(project_root)
         self.thumbnail_renderer = ThumbnailRenderer()
         self.video_service = VideoService(project_root)
         self.voice_service = VoiceService(project_root)
@@ -290,13 +292,32 @@ class DailyVideoPipeline:
         selected: SelectedTopic,
         logger: PipelineLogger,
     ) -> CountryRunArtifacts:
-        provider = self.content_service.resolve_provider(
+        provider = None
+        script = None
+        seo = None
+        thumbnail = None
+        last_error: Exception | None = None
+        for candidate_provider in self.content_service.ordered_providers(
             self.config.content_provider.primary,
             self.config.content_provider.fallback,
-        )
-        script = provider.generate_script(selected)
-        seo = provider.generate_seo(selected, script)
-        thumbnail = provider.generate_thumbnail(selected, script, seo)
+        ):
+            try:
+                script = candidate_provider.generate_script(selected)
+                seo = candidate_provider.generate_seo(selected, script)
+                thumbnail = candidate_provider.generate_thumbnail(selected, script, seo)
+                provider = candidate_provider
+                break
+            except Exception as exc:
+                last_error = exc
+                logger.warning(f"Content provider {candidate_provider.name} failed for {selected.candidate.country}: {exc}")
+                continue
+
+        if provider is None or script is None or seo is None or thumbnail is None:
+            raise RuntimeError(f"All content providers failed for {selected.candidate.country}: {last_error}")
+
+        scene_image_paths = self.scene_image_service.generate_scene_images(selected, script, country_dir)
+        if scene_image_paths:
+            thumbnail.source_image_path = str(scene_image_paths[0])
         thumbnail = self.thumbnail_renderer.render(thumbnail, country_dir, selected.language)
 
         subtitles_path = country_dir / "captions.srt"
@@ -348,6 +369,7 @@ class DailyVideoPipeline:
             "script": to_dict(script),
             "seo": to_dict(seo),
             "thumbnail": to_dict(thumbnail),
+            "scene_image_paths": [str(path) for path in scene_image_paths],
             "voiceover_path": str(voiceover_path) if voiceover_path else None,
             "fact_check_report": selected.candidate.extra.get("fact_check_report"),
             "performance_placeholders": {
@@ -378,6 +400,7 @@ class DailyVideoPipeline:
             script=script,
             seo=seo,
             thumbnail=thumbnail,
+            scene_image_paths=scene_image_paths,
             subtitles_path=subtitles_path,
             metadata_path=metadata_path,
             voiceover_path=voiceover_path,
@@ -399,6 +422,7 @@ class DailyVideoPipeline:
             script=artifact.script,
             seo=artifact.seo,
             thumbnail=artifact.thumbnail,
+            scene_image_paths=[str(path) for path in artifact.scene_image_paths],
             subtitles_path=artifact.subtitles_path,
             final_output_path=country_dir / "final_video.mp4",
             include_music=self.config.global_defaults.enable_background_music,
@@ -434,20 +458,24 @@ class DailyVideoPipeline:
         script: ScriptPackage,
         logger: PipelineLogger,
     ) -> Path | None:
-        provider = self.voice_service.resolve_provider()
-        if provider.name == "noop":
-            logger.warning(f"No voice provider available for {selected.candidate.country}; rendering without voiceover")
-            return None
-        output_path = country_dir / "voiceover.wav"
         script_path = country_dir / "voiceover_script.txt"
         write_text(script_path, script.voiceover_script)
-        try:
-            provider.synthesize(text=script.voiceover_script, language=selected.language, output_path=output_path)
-            logger.info(f"Generated voiceover for {selected.candidate.country} using {provider.name}")
-            return output_path
-        except Exception as exc:
-            logger.warning(f"Voiceover generation failed for {selected.candidate.country}: {exc}")
-            return None
+        for provider in self.voice_service.ordered_providers():
+            if provider.name == "noop":
+                logger.warning(f"No voice provider available for {selected.candidate.country}; rendering without voiceover")
+                return None
+            suffix = ".aiff" if provider.name == "macos_say" else ".wav"
+            output_path = country_dir / f"voiceover{suffix}"
+            try:
+                provider.synthesize(text=script.voiceover_script, language=selected.language, output_path=output_path)
+                if not output_path.exists() or output_path.stat().st_size <= 4096:
+                    raise RuntimeError("Voice file was created but contains no usable audio data.")
+                logger.info(f"Generated voiceover for {selected.candidate.country} using {provider.name}")
+                return output_path
+            except Exception as exc:
+                logger.warning(f"Voice provider {provider.name} failed for {selected.candidate.country}: {exc}")
+                continue
+        return None
 
     def _write_subtitles(self, path: Path, script: ScriptPackage) -> None:
         cursor = 0.0
@@ -556,8 +584,13 @@ class DailyVideoPipeline:
             script=script,
             seo=seo,
             thumbnail=thumbnail,
+            scene_image_paths=[path for path in (country_dir / "scene_images").glob("*.png")] if (country_dir / "scene_images").exists() else [],
             subtitles_path=country_dir / "captions.srt",
             metadata_path=country_dir / "metadata.json",
-            voiceover_path=country_dir / "voiceover.wav" if (country_dir / "voiceover.wav").exists() else None,
+            voiceover_path=(
+                country_dir / "voiceover.wav"
+                if (country_dir / "voiceover.wav").exists()
+                else (country_dir / "voiceover.aiff" if (country_dir / "voiceover.aiff").exists() else None)
+            ),
             final_video_path=country_dir / "final_video.mp4",
         )

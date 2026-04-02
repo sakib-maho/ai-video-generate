@@ -1,0 +1,22 @@
+# Piper TTS — local paths (this machine / this repo)
+# Generated 2026-04-02. Models are large; keep under vendor/piper/models/ or symlink.
+
+## Voice model (rhasspy/piper-voices, English US — good default for integration tests)
+# ONNX + JSON must stay together.
+MODEL_ONNX=/Users/sakib/Project/AI Video Generate/vendor/piper/models/en_US-lessac-medium/en_US-lessac-medium.onnx
+MODEL_JSON=/Users/sakib/Project/AI Video Generate/vendor/piper/models/en_US-lessac-medium/en_US-lessac-medium.onnx.json
+
+## Legacy Rhasspy CLI binary (release 2023.11.14-2)
+# NOTE: piper_macos_aarch64.tar.gz currently ships an x86_64 binary. On Apple Silicon you can:
+# - Prefer the Python API (recommended): piper package in .venv — see below, or
+# - Run the CLI under Rosetta and point DYLD at an x86_64 libespeak-ng (fragile).
+PIPER_CLI=/Users/sakib/Project/AI Video Generate/vendor/piper/dist/piper
+ESPEAK_NG_DATA=/Users/sakib/Project/AI Video Generate/vendor/piper/dist/espeak-ng-data
+
+## Python (OHF piper-tts, native arm64) — verified working with MODEL_ONNX
+# import piper; PiperVoice.load(Path(MODEL_ONNX))
+VENV_PYTHON=/Users/sakib/Project/AI Video Generate/.venv/bin/python
+
+## Language note for BD/JP pipeline
+# rhasspy/piper-voices has no ja_JP or bn_BD packs in the public index. For Bangla/Japanese you still
+# need Gemini/OpenAI TTS, another engine, or a community ONNX if you find one.

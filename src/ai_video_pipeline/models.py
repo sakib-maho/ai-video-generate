@@ -175,6 +175,7 @@ class ThumbnailPackage:
     selected_text: str
     prompt: str
     style: str
+    source_image_path: str | None = None
     thumbnail_path: str | None = None
     vertical_cover_path: str | None = None
 
@@ -194,6 +195,7 @@ class VideoRenderRequest:
     include_voiceover: bool
     brand_intro: bool
     brand_outro: bool
+    scene_image_paths: list[str] = field(default_factory=list)
     voiceover_audio_path: Path | None = None
     background_music_path: str | None = None
 
@@ -212,6 +214,7 @@ class CountryRunArtifacts:
     script: ScriptPackage
     seo: SeoPackage
     thumbnail: ThumbnailPackage
+    scene_image_paths: list[Path]
     subtitles_path: Path
     metadata_path: Path
     voiceover_path: Path | None

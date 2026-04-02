@@ -1,4 +1,5 @@
 .env
+example.env
 .venv/
 __pycache__/
 *.pyc
@@ -7,3 +8,7 @@ data/*.db
 data/*_pipeline.db
 *.log
 .DS_Store
+
+# Local Piper binaries and downloaded voice models (large)
+vendor/piper/dist/
+vendor/piper/models/

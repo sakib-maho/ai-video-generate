@@ -168,3 +168,13 @@ class ContentService:
             if provider and provider.available():
                 return provider
         return self.providers["template"]
+
+    def ordered_providers(self, preferred: str, fallbacks: list[str]) -> list[BaseContentProvider]:
+        ordered: list[BaseContentProvider] = []
+        for name in [preferred] + fallbacks + ["template"]:
+            provider = self.providers.get(name)
+            if provider and provider.available() and provider not in ordered:
+                ordered.append(provider)
+        if self.providers["template"] not in ordered:
+            ordered.append(self.providers["template"])
+        return ordered

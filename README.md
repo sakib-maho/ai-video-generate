@@ -74,10 +74,10 @@ Notes:
 
 - `config/config.yaml` is intentionally JSON-compatible YAML so the app can still parse it even if `PyYAML` is not installed yet.
 - The built-in FFmpeg slideshow provider works without API credentials.
-- `GEMINI_API_KEY` is the preferred content-generation credential for this project.
+- `OPENAI_API_KEY` is now the preferred content-generation credential for this project.
 - Bangladesh now defaults to Bangla output and the pipeline will attempt Bangla voiceover automatically.
-- For Bangla voiceover, the project uses Gemini TTS by default with a Bangla-focused narration style prompt and `Sulafat` as the default voice name.
-- `OPENAI_API_KEY` remains optional as an alternate provider.
+- For Bangla voiceover, the project now prefers OpenAI TTS first and falls back to Gemini TTS if configured.
+- `GEMINI_API_KEY` remains optional as a fallback provider.
 - The included `.env.example` already has placeholders for your Gemini project metadata and API key slot.
 
 ### 3. Run now
@@ -138,6 +138,7 @@ output/YYYY-MM-DD/
     thumbnail_prompt.txt
     thumbnail.png
     vertical_cover.png
+    scene_images/
     upload_payload_youtube.json
     upload_payload_tiktok.json
     upload_payload_instagram.json
@@ -156,13 +157,15 @@ output/YYYY-MM-DD/
 
 ### Content providers
 
-- `gemini`: implemented REST adapter using `generateContent`, recommended default
+- `openai`: implemented REST adapter using the OpenAI Responses API, current default
+- `gemini`: implemented REST adapter using `generateContent`, fallback option
 - `template`: built-in deterministic generator, no credentials required
-- `openai`: optional alternate adapter
 
 ### Voiceover providers
 
-- `gemini_tts`: implemented REST adapter using Gemini TTS preview
+- `openai_tts`: implemented REST adapter using the OpenAI speech API, current default
+- `gemini_tts`: implemented REST adapter using Gemini TTS preview, fallback option
+- `piper_tts`: local offline TTS adapter for Piper when binary and voice models are installed
 - `noop`: safe fallback when no key is configured
 
 ### Video providers
@@ -170,9 +173,13 @@ output/YYYY-MM-DD/
 - `slideshow`: fully implemented FFmpeg fallback that renders a finished short-form MP4
 - `sora`, `runway`, `kling`, `pika`: adapter stubs isolated behind a common interface and ready for credential-specific implementation
 
-The pipeline always prioritizes a finished deliverable. If Gemini or another premium provider is unavailable or fails, it falls back to `template` for content and `slideshow` for video.
+The pipeline always prioritizes a finished deliverable. If OpenAI or another premium provider is unavailable or fails, it falls back to Gemini or `template` for content and the animated motion-graphics fallback renderer for video.
 
-If Bangla voiceover generation fails or no Gemini key is configured, the video still renders and the run is logged with a voiceover warning instead of failing outright.
+When `OPENAI_API_KEY` is available, the pipeline also attempts to generate per-scene still images with the OpenAI image API and animates those images in the final vertical video before falling back to abstract motion scenes.
+
+If voiceover generation fails or no provider key is configured, the video still renders and the run is logged with a warning instead of failing outright.
+
+For proper offline voiced output, install Piper locally and configure `PIPER_MODEL_EN`, `PIPER_MODEL_JA`, and/or `PIPER_MODEL_BN` in `.env`. The pipeline will automatically prefer OpenAI and Gemini first, then fall back to Piper when available.
 
 ## Safety and credibility
 
@@ -248,7 +255,7 @@ Validate Gemini content and TTS access without starting a full run:
 python main.py --check-providers
 ```
 
-This is the fastest way to confirm your rotated `GEMINI_API_KEY` works before the daily scheduler starts.
+This is the fastest way to confirm your configured content and voice providers work before the daily scheduler starts.
 
 ## Missing credentials and extension points
 

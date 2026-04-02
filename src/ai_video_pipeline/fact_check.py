@@ -31,6 +31,8 @@ TRUSTED_DOMAINS = {
 class FactCheckService:
     def __init__(self, project_root: Path) -> None:
         self.project_root = project_root
+        self.openai_api_key = os.environ.get("OPENAI_API_KEY", "").strip()
+        self.openai_model = os.environ.get("OPENAI_MODEL", "gpt-4o-mini").strip()
         self.gemini_api_key = os.environ.get("GEMINI_API_KEY", "").strip()
         self.gemini_model = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash").strip()
         self.gemini_api_version = os.environ.get("GEMINI_API_VERSION", "v1beta").strip()
@@ -60,6 +62,9 @@ class FactCheckService:
 
         claims = self._extract_claims(candidate)
         assessments = [self._assess_source(url, claims) for url in candidate.citations[:3]]
+        openai_report = self._evaluate_with_openai(candidate, claims, assessments)
+        if openai_report is not None:
+            return openai_report
         gemini_report = self._evaluate_with_gemini(candidate, claims, assessments)
         if gemini_report is not None:
             return gemini_report
@@ -144,6 +149,130 @@ class FactCheckService:
             citations=candidate.citations,
             reviewer=f"gemini:{self.gemini_model}",
         )
+
+    def _evaluate_with_openai(
+        self,
+        candidate: TopicCandidate,
+        claims: list[str],
+        assessments: list[FactCheckSourceAssessment],
+    ) -> FactCheckReport | None:
+        if not self.openai_api_key:
+            return None
+        prompt = self._build_openai_prompt(candidate, claims, assessments)
+        try:
+            payload = self._call_openai_json(prompt)
+        except Exception:
+            return None
+
+        status = payload.get("status", "needs_review")
+        if status not in {"verified", "needs_review", "conflicting", "unsafe"}:
+            status = "needs_review"
+        summary = str(payload.get("summary", "OpenAI fact-check returned no summary."))[:400]
+        verified_claims = [str(item)[:220] for item in payload.get("verified_claims", [])]
+        uncertain_claims = [str(item)[:220] for item in payload.get("uncertain_claims", [])]
+        returned_claims = [str(item)[:220] for item in payload.get("claims", [])] or claims
+        return FactCheckReport(
+            status=status,
+            summary=summary,
+            claims=returned_claims[:4],
+            verified_claims=verified_claims[:4],
+            uncertain_claims=uncertain_claims[:4],
+            source_assessments=assessments,
+            citations=candidate.citations,
+            reviewer=f"openai:{self.openai_model}",
+        )
+
+    def _build_openai_prompt(
+        self,
+        candidate: TopicCandidate,
+        claims: list[str],
+        assessments: list[FactCheckSourceAssessment],
+    ) -> str:
+        assessment_lines = []
+        for item in assessments:
+            assessment_lines.append(
+                json.dumps(
+                    {
+                        "url": item.url,
+                        "domain": item.domain,
+                        "credibility": item.credibility,
+                        "corroborates": item.corroborates,
+                        "snippet": item.snippet,
+                        "notes": item.notes,
+                    },
+                    ensure_ascii=False,
+                )
+            )
+        return (
+            "Return strict JSON only.\n"
+            "You are a conservative fact-checking assistant for short-form video production.\n"
+            "Decide whether the topic framing is verified, needs_review, conflicting, or unsafe.\n"
+            "Do not upgrade weak evidence. If evidence is thin, return needs_review.\n"
+            f"Country: {candidate.country}\n"
+            f"Topic: {candidate.title}\n"
+            f"Why trending: {candidate.why_trending}\n"
+            f"Risk flags: {candidate.risk_flags}\n"
+            f"Claims: {json.dumps(claims, ensure_ascii=False)}\n"
+            f"Source assessments: [{', '.join(assessment_lines)}]\n"
+            "JSON schema:\n"
+            "{"
+            '"status":"verified|needs_review|conflicting|unsafe",'
+            '"summary":"string",'
+            '"claims":["string"],'
+            '"verified_claims":["string"],'
+            '"uncertain_claims":["string"]'
+            "}"
+        )
+
+    def _call_openai_json(self, prompt: str) -> dict[str, Any]:
+        url = "https://api.openai.com/v1/responses"
+        body = {
+            "model": self.openai_model,
+            "input": prompt,
+            "text": {"format": {"type": "json_object"}},
+        }
+        request = urllib.request.Request(
+            url,
+            data=json.dumps(body).encode("utf-8"),
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {self.openai_api_key}",
+            },
+            method="POST",
+        )
+
+        def _do_request() -> dict[str, Any]:
+            try:
+                with urllib.request.urlopen(request, timeout=45) as response:
+                    data = json.loads(response.read().decode("utf-8"))
+            except urllib.error.HTTPError as exc:
+                error_body = exc.read().decode("utf-8", errors="replace")
+                raise RuntimeError(f"OpenAI fact-check API error {exc.code}: {error_body}") from exc
+            except urllib.error.URLError as exc:
+                raise RuntimeError(f"OpenAI fact-check request failed: {exc}") from exc
+
+            text = data.get("output_text", "").strip()
+            if not text:
+                outputs = data.get("output", [])
+                for item in outputs:
+                    for content in item.get("content", []):
+                        if content.get("type") in {"output_text", "text"} and content.get("text"):
+                            text = str(content["text"]).strip()
+                            break
+                    if text:
+                        break
+            if not text:
+                raise RuntimeError(f"OpenAI fact-check response contained no text output: {data}")
+            try:
+                return json.loads(text)
+            except json.JSONDecodeError:
+                start = text.find("{")
+                end = text.rfind("}")
+                if start == -1 or end == -1 or end <= start:
+                    raise RuntimeError(f"OpenAI fact-check response was not parseable JSON: {text}")
+                return json.loads(text[start : end + 1])
+
+        return retry_call(_do_request, attempts=2, delay_seconds=0.5, backoff=2.0)
 
     def _build_gemini_prompt(
         self,
