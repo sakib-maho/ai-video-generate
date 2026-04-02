@@ -1,0 +1,77 @@
+{
+  "database_path": "data/pipeline.db",
+  "output_root": "output",
+  "log_level": "INFO",
+  "mode": "auto",
+  "schedule": {
+    "enabled": true,
+    "timezone": "Asia/Tokyo",
+    "hour": 8,
+    "minute": 0
+  },
+  "global_defaults": {
+    "script_duration_seconds": 45,
+    "extended_script_duration_seconds": 75,
+    "tone": "viral but credible",
+    "thumbnail_style": "clean news",
+    "videos_per_country": 1,
+    "history_cooldown_days": 7,
+    "safety_threshold": 45.0,
+    "max_retry_attempts": 3,
+    "enable_background_music": false,
+    "enable_voiceover": true,
+    "brand_intro": false,
+    "brand_outro": false,
+    "evergreen_fallback": true
+  },
+  "countries": [
+    {
+      "name": "bangladesh",
+      "label": "Bangladesh",
+      "default_language": "bn",
+      "languages": ["en", "bn"],
+      "enabled": true,
+      "videos_per_day": 1,
+      "news_feeds": [
+        "https://news.google.com/rss/search?q=Bangladesh&hl=en-BD&gl=BD&ceid=BD:en",
+        "https://bdnews24.com/feed",
+        "https://www.thedailystar.net/frontpage/rss.xml"
+      ],
+      "reddit_feeds": [
+        "https://www.reddit.com/r/bangladesh/hot.json?limit=10"
+      ],
+      "trends_feeds": [
+        "https://trends.google.com/trends/trendingsearches/daily/rss?geo=BD"
+      ]
+    },
+    {
+      "name": "japan",
+      "label": "Japan",
+      "default_language": "ja",
+      "languages": ["ja", "en"],
+      "enabled": true,
+      "videos_per_day": 1,
+      "news_feeds": [
+        "https://news.google.com/rss/search?q=Japan&hl=en-US&gl=JP&ceid=JP:en",
+        "https://www3.nhk.or.jp/rss/news/cat0.xml",
+        "https://www.japantimes.co.jp/feed/"
+      ],
+      "reddit_feeds": [
+        "https://www.reddit.com/r/japan/hot.json?limit=10"
+      ],
+      "trends_feeds": [
+        "https://trends.google.com/trends/trendingsearches/daily/rss?geo=JP"
+      ]
+    }
+  ],
+  "providers": {
+    "content": {
+      "primary": "gemini",
+      "fallback": ["template", "openai"]
+    },
+    "video": {
+      "primary": "slideshow",
+      "fallback": ["sora", "runway", "kling", "pika", "slideshow"]
+    }
+  }
+}

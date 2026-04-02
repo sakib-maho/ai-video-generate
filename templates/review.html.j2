@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Daily Video Review</title>
+    <style>
+      body { font-family: Arial, sans-serif; margin: 40px; background: #f5f2eb; color: #1f2937; }
+      .card { background: white; border-radius: 16px; padding: 24px; margin-bottom: 24px; box-shadow: 0 10px 25px rgba(0,0,0,0.08); }
+      h1, h2, h3 { margin-top: 0; }
+      pre { white-space: pre-wrap; background: #111827; color: #f9fafb; padding: 16px; border-radius: 12px; }
+      img { max-width: 320px; border-radius: 12px; }
+      .meta { color: #6b7280; font-size: 14px; }
+    </style>
+  </head>
+  <body>
+    <h1>Daily Video Review: {{RUN_DATE}}</h1>
+    {{COUNTRY_BLOCKS}}
+  </body>
+</html>

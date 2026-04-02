@@ -1,0 +1,39 @@
+{
+  "bangladesh": [
+    {
+      "title": "Bangladesh heatwave sparks school and health alerts",
+      "source_name": "Sample Feed",
+      "source_type": "seed",
+      "source_url": "https://example.com/bd-heatwave",
+      "why_trending": "Heatwave conditions are affecting daily life and public services, creating strong public interest.",
+      "published_at": "2026-04-02T06:00:00+09:00"
+    },
+    {
+      "title": "New Bangladesh infrastructure launch boosts travel buzz",
+      "source_name": "Sample Feed",
+      "source_type": "seed",
+      "source_url": "https://example.com/bd-infra",
+      "why_trending": "A major infrastructure milestone is generating shareable before-and-after discussion.",
+      "published_at": "2026-04-02T05:00:00+09:00"
+    }
+  ],
+  "japan": [
+    {
+      "title": "Cherry blossom front shifts travel plans across Japan",
+      "source_name": "Sample Feed",
+      "source_type": "seed",
+      "source_url": "https://example.com/jp-sakura",
+      "why_trending": "Peak bloom timing is driving tourism, social posts, and weather-related interest.",
+      "published_at": "2026-04-02T06:30:00+09:00"
+    },
+    {
+      "title": "Japan robotics showcase reveals compact home assistant concept",
+      "source_name": "Sample Feed",
+      "source_type": "seed",
+      "source_url": "https://example.com/jp-robotics",
+      "source_type": "seed",
+      "why_trending": "The demo combines tech novelty with strong visual potential for short-form content.",
+      "published_at": "2026-04-02T04:45:00+09:00"
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+Create short-form SEO packaging for a video.
+
+Inputs:
+- Platform target: YouTube Shorts, TikTok, Instagram Reels
+- Topic: {topic}
+- Country: {country}
+- Language: {language}
+- Tone: {tone}
+
+Return:
+- 5 title options
+- 1 recommended title
+- description
+- 20 hashtags
+- keywords
+- upload filename
+- platform tags

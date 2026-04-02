@@ -1,0 +1,22 @@
+You are writing a short-form vertical video script.
+
+Inputs:
+- Country: {country}
+- Language: {language}
+- Tone: {tone}
+- Duration target: {duration_seconds} seconds
+- Topic: {topic}
+- Why trending: {why_trending}
+- Sources: {sources}
+
+Produce:
+1. hook
+2. 4 to 6 scenes with short visual directions
+3. voiceover script
+4. on-screen captions
+5. CTA
+
+Priorities:
+- credible, concise, visually strong
+- avoid sensational misinformation
+- suitable for YouTube Shorts, TikTok, and Instagram Reels

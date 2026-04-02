@@ -1,0 +1,13 @@
+Review the topic and its citations for risky claims.
+
+Inputs:
+- Topic: {topic}
+- Sources: {sources}
+- Why trending: {why_trending}
+
+Classify:
+- verified
+- needs_review
+- unsafe
+
+Explain any uncertainty briefly.
