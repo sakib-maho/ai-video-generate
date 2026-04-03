@@ -20,19 +20,48 @@ class SceneImageService:
     def available(self) -> bool:
         return bool(self.api_key)
 
+    def generate_character_sheets(self, selected: SelectedTopic, script: ScriptPackage, output_dir: Path) -> list[Path]:
+        if not self.available() or not script.character_sheet:
+            return []
+        sheets_dir = ensure_dir(output_dir / "character_sheets")
+        generated: list[Path] = []
+        for index, character in enumerate(script.character_sheet, start=1):
+            prompt = (
+                f"Create a full-body vertical character sheet for a stylized 3D cartoon short.\n"
+                f"Country context: {selected.candidate.country}\n"
+                f"Topic context: {selected.candidate.title}\n"
+                f"Character name: {character.name}\n"
+                f"Role: {character.role}\n"
+                f"Appearance: {character.appearance}\n"
+                f"Wardrobe: {character.wardrobe}\n"
+                f"Personality: {character.personality}\n"
+                f"Consistency rule: {character.consistency_prompt}\n"
+                "Style: polished animated feature-film concept art, expressive face, clean turnaround-ready framing, vibrant but tasteful color design, soft cinematic lighting, no text, no watermark."
+            )
+            output_path = sheets_dir / f"character_{index:02d}_{character.name.lower().replace(' ', '_')}.png"
+            try:
+                self._generate_image(prompt=prompt, output_path=output_path)
+                generated.append(output_path)
+            except Exception:
+                continue
+        return generated
+
     def generate_scene_images(self, selected: SelectedTopic, script: ScriptPackage, output_dir: Path) -> list[Path]:
         if not self.available():
             return []
         images_dir = ensure_dir(output_dir / "scene_images")
         generated: list[Path] = []
+        character_context = " ".join(character.consistency_prompt for character in script.character_sheet)
         for scene in script.scenes:
             prompt = (
-                f"Create a cinematic vertical scene visual for a short-form video.\n"
+                f"Create a cinematic vertical scene visual for a short-form animated video.\n"
                 f"Country: {selected.candidate.country}\n"
                 f"Language: {selected.language}\n"
                 f"Topic: {selected.candidate.title}\n"
                 f"Scene intent: {scene.visual_prompt}\n"
-                "Style: modern editorial motion-graphics-ready still frame, clean composition, no captions, no watermarks, no copyrighted footage, high contrast."
+                f"Characters: {', '.join(scene.characters) if scene.characters else 'none specified'}\n"
+                f"Character consistency: {character_context}\n"
+                "Style: stylized 3D cartoon movie frame, consistent recurring characters, expressive action pose, shallow depth of field, clean composition, no captions, no watermarks, no copyrighted footage, high contrast."
             )
             output_path = images_dir / f"scene_{scene.index:02d}.png"
             try:

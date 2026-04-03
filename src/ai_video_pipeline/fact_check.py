@@ -62,6 +62,9 @@ class FactCheckService:
 
         claims = self._extract_claims(candidate)
         assessments = [self._assess_source(url, claims) for url in candidate.citations[:3]]
+        # Do not let LLM fact-check override explicit misinformation risk flags.
+        if "misinformation" in candidate.risk_flags:
+            return self._evaluate_heuristic(candidate, claims, assessments)
         openai_report = self._evaluate_with_openai(candidate, claims, assessments)
         if openai_report is not None:
             return openai_report

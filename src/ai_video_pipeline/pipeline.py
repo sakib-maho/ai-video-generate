@@ -10,6 +10,7 @@ from .fact_check import FactCheckService
 from .images import SceneImageService
 from .logging_utils import PipelineLogger
 from .models import (
+    CharacterDesign,
     CountryRunArtifacts,
     FactCheckReport,
     PipelineConfig,
@@ -17,6 +18,7 @@ from .models import (
     ScriptPackage,
     SelectedTopic,
     SeoPackage,
+    StoryboardBeat,
     ThumbnailPackage,
     TopicCandidate,
     TopicSource,
@@ -315,9 +317,12 @@ class DailyVideoPipeline:
         if provider is None or script is None or seo is None or thumbnail is None:
             raise RuntimeError(f"All content providers failed for {selected.candidate.country}: {last_error}")
 
+        character_sheet_image_paths = self.scene_image_service.generate_character_sheets(selected, script, country_dir)
         scene_image_paths = self.scene_image_service.generate_scene_images(selected, script, country_dir)
         if scene_image_paths:
             thumbnail.source_image_path = str(scene_image_paths[0])
+        elif character_sheet_image_paths:
+            thumbnail.source_image_path = str(character_sheet_image_paths[0])
         thumbnail = self.thumbnail_renderer.render(thumbnail, country_dir, selected.language)
 
         subtitles_path = country_dir / "captions.srt"
@@ -348,6 +353,23 @@ class DailyVideoPipeline:
             },
         )
         write_text(country_dir / "script.txt", self._script_to_text(script))
+        write_json(country_dir / "character_sheet.json", [to_dict(character) for character in script.character_sheet])
+        write_json(country_dir / "storyboard.json", [to_dict(beat) for beat in script.storyboard])
+        write_json(
+            country_dir / "animation_manifest.json",
+            {
+                "mode": script.mode,
+                "visual_style": script.visual_style,
+                "topic": selected.candidate.title,
+                "country": selected.candidate.country,
+                "language": selected.language,
+                "characters": [to_dict(character) for character in script.character_sheet],
+                "storyboard": [to_dict(beat) for beat in script.storyboard],
+                "scenes": [to_dict(scene) for scene in script.scenes],
+                "character_sheet_image_paths": [str(path) for path in character_sheet_image_paths],
+                "scene_image_paths": [str(path) for path in scene_image_paths],
+            },
+        )
         write_text(country_dir / "title_options.txt", "\n".join(seo.title_options))
         write_text(country_dir / "final_title.txt", seo.final_title)
         write_text(country_dir / "description.txt", seo.description)
@@ -370,6 +392,7 @@ class DailyVideoPipeline:
             "seo": to_dict(seo),
             "thumbnail": to_dict(thumbnail),
             "scene_image_paths": [str(path) for path in scene_image_paths],
+            "character_sheet_image_paths": [str(path) for path in character_sheet_image_paths],
             "voiceover_path": str(voiceover_path) if voiceover_path else None,
             "fact_check_report": selected.candidate.extra.get("fact_check_report"),
             "performance_placeholders": {
@@ -401,6 +424,7 @@ class DailyVideoPipeline:
             seo=seo,
             thumbnail=thumbnail,
             scene_image_paths=scene_image_paths,
+            character_sheet_image_paths=character_sheet_image_paths,
             subtitles_path=subtitles_path,
             metadata_path=metadata_path,
             voiceover_path=voiceover_path,
@@ -423,6 +447,7 @@ class DailyVideoPipeline:
             seo=artifact.seo,
             thumbnail=artifact.thumbnail,
             scene_image_paths=[str(path) for path in artifact.scene_image_paths],
+            character_sheet_image_paths=[str(path) for path in artifact.character_sheet_image_paths],
             subtitles_path=artifact.subtitles_path,
             final_output_path=country_dir / "final_video.mp4",
             include_music=self.config.global_defaults.enable_background_music,
@@ -431,6 +456,7 @@ class DailyVideoPipeline:
             brand_outro=self.config.global_defaults.brand_outro,
             voiceover_audio_path=artifact.voiceover_path,
             background_music_path=None,
+            animation_style=self.config.global_defaults.visual_style,
         )
         result = self.video_service.render(
             preferred=self.config.video_provider.primary,
@@ -496,6 +522,18 @@ class DailyVideoPipeline:
 
     def _script_to_text(self, script: ScriptPackage) -> str:
         lines = [f"Hook: {script.hook}", "", f"Summary: {script.summary}", ""]
+        if script.character_sheet:
+            lines.extend(["Characters:"])
+            for character in script.character_sheet:
+                lines.append(f"- {character.name}: {character.role} | {character.appearance}")
+            lines.append("")
+        if script.storyboard:
+            lines.extend(["Storyboard:"])
+            for beat in script.storyboard:
+                lines.append(
+                    f"- Scene {beat.scene_index}: {beat.shot_type}, {beat.camera_move}, {beat.action}, transition {beat.transition}"
+                )
+            lines.append("")
         for scene in script.scenes:
             lines.extend(
                 [
@@ -538,6 +576,8 @@ class DailyVideoPipeline:
                 "script": to_dict(artifact.script),
                 "seo": to_dict(artifact.seo),
                 "thumbnail": to_dict(artifact.thumbnail),
+                "character_sheet_image_paths": [str(path) for path in artifact.character_sheet_image_paths],
+                "scene_image_paths": [str(path) for path in artifact.scene_image_paths],
             }
             blocks.append(
                 "<div class='card'>"
@@ -576,6 +616,10 @@ class DailyVideoPipeline:
             cta=payload["script"]["cta"],
             language=payload["script"]["language"],
             tone=payload["script"]["tone"],
+            mode=payload["script"].get("mode", "news_short"),
+            visual_style=payload["script"].get("visual_style", "modern editorial short"),
+            character_sheet=[CharacterDesign(**character) for character in payload["script"].get("character_sheet", [])],
+            storyboard=[StoryboardBeat(**beat) for beat in payload["script"].get("storyboard", [])],
         )
         seo = SeoPackage(**payload["seo"])
         thumbnail = ThumbnailPackage(**payload["thumbnail"])
@@ -585,6 +629,9 @@ class DailyVideoPipeline:
             seo=seo,
             thumbnail=thumbnail,
             scene_image_paths=[path for path in (country_dir / "scene_images").glob("*.png")] if (country_dir / "scene_images").exists() else [],
+            character_sheet_image_paths=(
+                [path for path in (country_dir / "character_sheets").glob("*.png")] if (country_dir / "character_sheets").exists() else []
+            ),
             subtitles_path=country_dir / "captions.srt",
             metadata_path=country_dir / "metadata.json",
             voiceover_path=(

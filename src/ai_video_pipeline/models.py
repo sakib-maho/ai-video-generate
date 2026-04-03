@@ -56,6 +56,9 @@ class GlobalDefaults:
     brand_intro: bool
     brand_outro: bool
     evergreen_fallback: bool
+    visual_mode: str = "cartoon_animated_short"
+    visual_style: str = "stylized 3D cartoon animation"
+    animation_provider_mode: str = "image_to_video"
 
 
 @dataclass(slots=True)
@@ -135,6 +138,28 @@ class SelectedTopic:
 
 
 @dataclass(slots=True)
+class CharacterDesign:
+    name: str
+    role: str
+    appearance: str
+    wardrobe: str
+    personality: str
+    consistency_prompt: str
+
+
+@dataclass(slots=True)
+class StoryboardBeat:
+    scene_index: int
+    setting: str
+    shot_type: str
+    camera_move: str
+    action: str
+    emotion: str
+    transition: str
+    animation_prompt: str
+
+
+@dataclass(slots=True)
 class Scene:
     index: int
     title: str
@@ -142,6 +167,14 @@ class Scene:
     narration: str
     caption: str
     duration_seconds: float
+    setting: str = ""
+    characters: list[str] = field(default_factory=list)
+    shot_type: str = "medium"
+    camera_move: str = "slow push in"
+    emotion: str = ""
+    action: str = ""
+    transition: str = "cut"
+    animation_prompt: str = ""
 
 
 @dataclass(slots=True)
@@ -154,6 +187,10 @@ class ScriptPackage:
     cta: str
     language: str
     tone: str
+    mode: str = "news_short"
+    visual_style: str = "modern editorial short"
+    character_sheet: list[CharacterDesign] = field(default_factory=list)
+    storyboard: list[StoryboardBeat] = field(default_factory=list)
 
 
 @dataclass(slots=True)
@@ -196,8 +233,10 @@ class VideoRenderRequest:
     brand_intro: bool
     brand_outro: bool
     scene_image_paths: list[str] = field(default_factory=list)
+    character_sheet_image_paths: list[str] = field(default_factory=list)
     voiceover_audio_path: Path | None = None
     background_music_path: str | None = None
+    animation_style: str = "motion_graphics"
 
 
 @dataclass(slots=True)
@@ -215,6 +254,7 @@ class CountryRunArtifacts:
     seo: SeoPackage
     thumbnail: ThumbnailPackage
     scene_image_paths: list[Path]
+    character_sheet_image_paths: list[Path]
     subtitles_path: Path
     metadata_path: Path
     voiceover_path: Path | None

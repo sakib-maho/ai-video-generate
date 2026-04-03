@@ -50,7 +50,7 @@ output_path = Path(__import__('os').environ['PIPER_OUTPUT_PATH'])
 text = __import__('os').environ['PIPER_TEXT']
 voice = PiperVoice.load(model_path)
 with wave.open(str(output_path), 'wb') as wav_file:
-    voice.synthesize(text, wav_file)
+    voice.synthesize_wav(text, wav_file)
 print(output_path.stat().st_size)
 """
 

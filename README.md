@@ -17,7 +17,7 @@ The default implementation is designed to stay usable without credentials:
 
 - live discovery uses public feeds when reachable
 - content generation falls back to a deterministic template engine
-- video generation falls back to a built-in FFmpeg slideshow renderer
+- video generation falls back to a built-in FFmpeg animated renderer
 
 When credentials are added later, the Gemini or OpenAI content provider and future video/image adapters can be enabled without changing the pipeline shape.
 
@@ -73,10 +73,11 @@ Edit [config/config.yaml](/Users/sakib/Project/AI Video Generate/config/config.y
 Notes:
 
 - `config/config.yaml` is intentionally JSON-compatible YAML so the app can still parse it even if `PyYAML` is not installed yet.
-- The built-in FFmpeg slideshow provider works without API credentials.
+- The built-in FFmpeg animated renderer works without API credentials.
 - `OPENAI_API_KEY` is now the preferred content-generation credential for this project.
 - Bangladesh now defaults to Bangla output and the pipeline will attempt Bangla voiceover automatically.
 - For Bangla voiceover, the project now prefers OpenAI TTS first and falls back to Gemini TTS if configured.
+- `RUNWAY_API_KEY` enables the premium image-to-video provider path for cartoon animated shorts.
 - `GEMINI_API_KEY` remains optional as a fallback provider.
 - The included `.env.example` already has placeholders for your Gemini project metadata and API key slot.
 
@@ -130,6 +131,9 @@ output/YYYY-MM-DD/
     research.json
     fact_check_report.json
     script.txt
+    character_sheet.json
+    storyboard.json
+    animation_manifest.json
     captions.srt
     title_options.txt
     final_title.txt
@@ -170,12 +174,15 @@ output/YYYY-MM-DD/
 
 ### Video providers
 
+- `runway`: implemented REST adapter for `POST /v1/image_to_video` plus `GET /v1/tasks/{id}` polling, using the storyboard and seed images to generate per-scene clips
 - `slideshow`: fully implemented FFmpeg fallback that renders a finished short-form MP4
-- `sora`, `runway`, `kling`, `pika`: adapter stubs isolated behind a common interface and ready for credential-specific implementation
+- `sora`, `kling`, `pika`: adapter stubs isolated behind a common interface and ready for credential-specific implementation
 
-The pipeline always prioritizes a finished deliverable. If OpenAI or another premium provider is unavailable or fails, it falls back to Gemini or `template` for content and the animated motion-graphics fallback renderer for video.
+The pipeline always prioritizes a finished deliverable. If OpenAI or another premium provider is unavailable or fails, it falls back to Gemini or `template` for content and the animated fallback renderer for video.
 
 When `OPENAI_API_KEY` is available, the pipeline also attempts to generate per-scene still images with the OpenAI image API and animates those images in the final vertical video before falling back to abstract motion scenes.
+
+When `RUNWAY_API_KEY` is available, the pipeline prefers Runway for scene-level image-to-video generation. It uses the generated scene images first, then character sheets, then a local placeholder seed frame if no image provider is available.
 
 If voiceover generation fails or no provider key is configured, the video still renders and the run is logged with a warning instead of failing outright.
 
@@ -225,6 +232,7 @@ Covered in the first version:
 
 - trend scoring behavior
 - duplicate/history filtering
+- cartoon storyboard generation structure
 
 ## Configuration highlights
 

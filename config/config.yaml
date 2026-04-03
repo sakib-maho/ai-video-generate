@@ -22,7 +22,10 @@
     "enable_voiceover": true,
     "brand_intro": false,
     "brand_outro": false,
-    "evergreen_fallback": true
+    "evergreen_fallback": true,
+    "visual_mode": "cartoon_animated_short",
+    "visual_style": "stylized 3D cartoon animation",
+    "animation_provider_mode": "image_to_video"
   },
   "countries": [
     {
@@ -70,8 +73,8 @@
       "fallback": ["gemini", "template"]
     },
     "video": {
-      "primary": "slideshow",
-      "fallback": ["sora", "runway", "kling", "pika", "slideshow"]
+      "primary": "runway",
+      "fallback": ["slideshow", "sora", "kling", "pika"]
     }
   }
 }

@@ -7,7 +7,7 @@ import urllib.request
 from pathlib import Path
 from typing import Any
 
-from ...models import Scene, ScriptPackage, SelectedTopic, SeoPackage, ThumbnailPackage
+from ...models import CharacterDesign, Scene, ScriptPackage, SelectedTopic, SeoPackage, StoryboardBeat, ThumbnailPackage
 from ...utils import retry_call
 from .base import BaseContentProvider
 
@@ -27,7 +27,7 @@ class GeminiContentProvider(BaseContentProvider):
     def generate_script(self, topic: SelectedTopic) -> ScriptPackage:
         prompt = (
             "Return strict JSON only.\n"
-            "Create a credible short-form video script.\n"
+            "Create a credible short-form vertical video package designed as a stylized 3D cartoon animated short.\n"
             f"Country: {topic.candidate.country}\n"
             f"Language: {topic.language}\n"
             f"Tone: {topic.tone}\n"
@@ -35,11 +35,17 @@ class GeminiContentProvider(BaseContentProvider):
             f"Topic: {topic.candidate.title}\n"
             f"Why trending: {topic.candidate.why_trending}\n"
             f"Sources: {', '.join(topic.candidate.citations[:5])}\n"
+            "Create one recurring host character and optionally one sidekick/motif for consistent animation across scenes.\n"
+            "Every scene must be visually specific, animated, and suitable for image-to-video generation.\n"
             "JSON schema:\n"
             "{"
             '"hook":"string",'
             '"summary":"string",'
-            '"scenes":[{"index":1,"title":"string","visual_prompt":"string","narration":"string","caption":"string","duration_seconds":10.0}],'
+            '"mode":"cartoon_animated_short",'
+            '"visual_style":"string",'
+            '"character_sheet":[{"name":"string","role":"string","appearance":"string","wardrobe":"string","personality":"string","consistency_prompt":"string"}],'
+            '"storyboard":[{"scene_index":1,"setting":"string","shot_type":"string","camera_move":"string","action":"string","emotion":"string","transition":"string","animation_prompt":"string"}],'
+            '"scenes":[{"index":1,"title":"string","visual_prompt":"string","narration":"string","caption":"string","duration_seconds":10.0,"setting":"string","characters":["string"],"shot_type":"string","camera_move":"string","emotion":"string","action":"string","transition":"string","animation_prompt":"string"}],'
             '"voiceover_script":"string",'
             '"captions":["string"],'
             '"cta":"string"'
@@ -47,6 +53,8 @@ class GeminiContentProvider(BaseContentProvider):
         )
         payload = self._generate_json(prompt)
         scenes = [Scene(**scene) for scene in payload["scenes"]]
+        characters = [CharacterDesign(**item) for item in payload.get("character_sheet", [])]
+        storyboard = [StoryboardBeat(**item) for item in payload.get("storyboard", [])]
         return ScriptPackage(
             hook=payload["hook"],
             summary=payload["summary"],
@@ -56,6 +64,10 @@ class GeminiContentProvider(BaseContentProvider):
             cta=payload["cta"],
             language=topic.language,
             tone=topic.tone,
+            mode=payload.get("mode", "cartoon_animated_short"),
+            visual_style=payload.get("visual_style", "stylized 3D cartoon animation"),
+            character_sheet=characters,
+            storyboard=storyboard,
         )
 
     def generate_seo(self, topic: SelectedTopic, script: ScriptPackage) -> SeoPackage:
@@ -96,12 +108,13 @@ class GeminiContentProvider(BaseContentProvider):
     def generate_thumbnail(self, topic: SelectedTopic, script: ScriptPackage, seo: SeoPackage) -> ThumbnailPackage:
         prompt = (
             "Return strict JSON only.\n"
-            "Create thumbnail planning metadata for a short-form news/trend video.\n"
+            "Create thumbnail planning metadata for a short-form stylized 3D cartoon animated trend video.\n"
             f"Country: {topic.candidate.country}\n"
             f"Language: {topic.language}\n"
             f"Topic: {topic.candidate.title}\n"
             f"Recommended title: {seo.final_title}\n"
             f"Hook: {script.hook}\n"
+            f"Visual style: {script.visual_style}\n"
             "JSON schema:\n"
             "{"
             '"text_options":["string","string","string","string"],'

@@ -148,6 +148,7 @@ class DeduplicationTests(unittest.TestCase):
         class GeminiFactCheckStub(FactCheckService):
             def __init__(self) -> None:
                 super().__init__(ROOT)
+                self.openai_api_key = ""
                 self.gemini_api_key = "test-key"
 
             def _assess_source(self, url: str, claims: list[str]):  # type: ignore[override]

@@ -166,7 +166,18 @@ def discover_font(language: str) -> str | None:
 
 
 def run_command(command: list[str], cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(command, cwd=str(cwd) if cwd else None, check=True, text=True, capture_output=True)
+    result = subprocess.run(
+        command, cwd=str(cwd) if cwd else None, check=False, text=True, capture_output=True
+    )
+    if result.returncode != 0:
+        err = (result.stderr or "").strip() or (result.stdout or "").strip()
+        raise subprocess.CalledProcessError(
+            result.returncode,
+            command,
+            output=result.stdout,
+            stderr=err or result.stderr,
+        )
+    return result
 
 
 T = TypeVar("T")

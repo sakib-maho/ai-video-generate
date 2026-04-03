@@ -59,6 +59,9 @@ class ThumbnailRenderer:
         filters: list[str],
     ) -> None:
         if source_image and source_image.exists():
+            w, _, h = size.partition("x")
+            if not h:
+                w, h = size, size
             input_command = [
                 ffmpeg_bin,
                 "-y",
@@ -67,12 +70,14 @@ class ThumbnailRenderer:
                 "-vf",
                 ",".join(
                     [
-                        f"scale={size.split('x')[0]}:{size.split('x')[1]}:force_original_aspect_ratio=increase",
-                        f"crop={size}",
+                        f"scale={w}:{h}:force_original_aspect_ratio=increase",
+                        f"crop={w}:{h}",
                     ]
                     + filters
                 ),
                 "-frames:v",
+                "1",
+                "-update",
                 "1",
                 str(output_path),
             ]
@@ -90,6 +95,8 @@ class ThumbnailRenderer:
                 "-vf",
                 ",".join(filters),
                 "-frames:v",
+                "1",
+                "-update",
                 "1",
                 str(output_path),
             ]
