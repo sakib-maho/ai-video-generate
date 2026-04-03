@@ -34,6 +34,31 @@ def script_language_directive(language: str) -> str:
     )
 
 
+def summary_only_script_directive() -> str:
+    """Spoken copy must sound like a short AI explainer, not a news bibliography."""
+    return (
+        "SPOKEN COPY (mandatory): hook, every scene narration, voiceover_script, captions, and cta must be plain, "
+        "viewer-friendly summary language only. Do NOT include URLs, domain names, publication titles, 'source context', "
+        "citation lists, or phrases like 'according to reports from…'. Do not read research or feed metadata aloud. "
+        "Paraphrase the idea in natural speech. visual_prompt and animation_prompt may stay concrete for image models.\n"
+    )
+
+
+def scene_variety_directive(duration_seconds: int) -> str:
+    """Ask the script model for many distinct visual beats so each scene gets its own image."""
+    min_s = int(os.environ.get("PIPELINE_MIN_SCENES", "6"))
+    max_s = int(os.environ.get("PIPELINE_MAX_SCENES", "10"))
+    target = max(min_s, min(max_s, max(min_s, (int(duration_seconds) + 4) // 6)))
+    return (
+        f"SCENE COUNT & VISUAL VARIETY (mandatory): Provide at least {target} objects in `scenes` "
+        f"(indices 1..N in order) for a ~{duration_seconds}s video. "
+        "Each scene MUST have a unique `visual_prompt` and `setting`: change location, time, mood, or story beat—"
+        "never describe one static illustration reused for the whole short. Advance the narrative visually every scene. "
+        "Vary `shot_type`, `camera_move`, and `action` so each frame would look clearly different as a still image. "
+        "Include matching `storyboard` rows (one per scene, scene_index aligned).\n"
+    )
+
+
 def funny_cartoon_angle_directive() -> str:
     """Extra prompt for funny, high-energy cartoon shorts (paired with content_angle=funny_cartoon)."""
     return (

@@ -8,7 +8,14 @@ from pathlib import Path
 from typing import Any
 
 from ...models import CharacterDesign, Scene, ScriptPackage, SelectedTopic, SeoPackage, StoryboardBeat, ThumbnailPackage
-from ...utils import funny_cartoon_angle_directive, retry_call, script_language_directive, seo_language_directive
+from ...utils import (
+    funny_cartoon_angle_directive,
+    retry_call,
+    scene_variety_directive,
+    script_language_directive,
+    seo_language_directive,
+    summary_only_script_directive,
+)
 from .base import BaseContentProvider
 
 
@@ -32,11 +39,13 @@ class GeminiContentProvider(BaseContentProvider):
             f"Language: {topic.language}\n"
             f"Tone: {topic.tone}\n"
             f"Duration seconds: {topic.duration_seconds}\n"
-            f"Topic: {topic.candidate.title}\n"
-            f"Why trending: {topic.candidate.why_trending}\n"
-            f"Sources: {', '.join(topic.candidate.citations[:5])}\n"
+            f"Topic headline: {topic.candidate.title}\n"
+            f"Angle (for writing only—do not recite as citations or name outlets): {topic.candidate.why_trending}\n"
+            f"{summary_only_script_directive()}"
+            "Avoid presenting uncertain claims as confirmed facts.\n"
             "Create one recurring host character and optionally one sidekick/motif for consistent animation across scenes.\n"
             "Every scene must be visually specific, animated, and suitable for image-to-video generation.\n"
+            f"{scene_variety_directive(topic.duration_seconds)}"
             f"{script_language_directive(topic.language)}"
             f"{funny_cartoon_angle_directive() if getattr(topic, 'content_angle', None) == 'funny_cartoon' else ''}"
             "JSON schema:\n"

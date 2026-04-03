@@ -67,13 +67,21 @@ class SceneImageService:
             if funny_3d
             else ""
         )
+        n_scenes = len(script.scenes)
         for scene in script.scenes:
             prompt = (
-                f"Create a cinematic vertical scene visual for a short-form animated video.\n"
+                f"Create ONE distinct cinematic vertical still — scene {scene.index} of {n_scenes} in this short.\n"
+                f"This frame must look clearly different from the other scenes: new background, new pose, new story beat.\n"
                 f"Country: {selected.candidate.country}\n"
                 f"Language: {selected.language}\n"
-                f"Topic: {selected.candidate.title}\n"
-                f"Scene intent: {scene.visual_prompt}\n"
+                f"Story theme (visualize the idea, not a news crawl): {selected.candidate.title}\n"
+                f"Scene title: {scene.title}\n"
+                f"Setting: {scene.setting}\n"
+                f"Action: {scene.action}\n"
+                f"Shot / camera: {scene.shot_type}, {scene.camera_move}\n"
+                f"Mood: {scene.emotion}\n"
+                f"Full visual brief: {scene.visual_prompt}\n"
+                f"Animation hint (for still pose): {scene.animation_prompt}\n"
                 f"Characters: {', '.join(scene.characters) if scene.characters else 'none specified'}\n"
                 f"Character consistency: {character_context}\n"
                 f"{funny_scene}"

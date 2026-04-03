@@ -50,11 +50,11 @@ class TemplateContentProvider(BaseContentProvider):
     def generate_script(self, topic: SelectedTopic) -> ScriptPackage:
         strings = LANGUAGE_STRINGS.get(topic.language, LANGUAGE_STRINGS["en"])
         hook = strings["hook"].format(topic=topic.candidate.title)
-        scene_count = 4 if topic.duration_seconds <= 60 else 5
+        # Match LLM targets: several distinct visual beats (6–8) so slideshow changes image with context.
+        scene_count = max(6, min(8, (int(topic.duration_seconds) + 4) // 6))
         per_scene = round(topic.duration_seconds / scene_count, 2)
         scenes: list[Scene] = []
         storyboard: list[StoryboardBeat] = []
-        source_names = ", ".join(sorted({source.name for source in topic.candidate.sources}))
         host_name = {
             "en": "Mina",
             "ja": "Mina",
@@ -95,7 +95,7 @@ class TemplateContentProvider(BaseContentProvider):
                 "emotion": "focused explanation",
                 "camera_move": "parallax orbit",
                 "shot_type": "wide",
-                "point": f"This signal appeared across {topic.candidate.source_count} source streams.",
+                "point": "Online buzz and shares helped the story spread fast this week.",
             },
             {
                 "title": "Why people care",
@@ -113,7 +113,7 @@ class TemplateContentProvider(BaseContentProvider):
                 "emotion": "credible and calm",
                 "camera_move": "slow push in",
                 "shot_type": "medium",
-                "point": "Credibility matters, so the coverage stays close to what reputable sources are actually reporting.",
+                "point": "The takeaway stays grounded in what most people are seeing in the conversation so far.",
             },
             {
                 "title": "What to watch next",
@@ -123,6 +123,33 @@ class TemplateContentProvider(BaseContentProvider):
                 "camera_move": "lift up reveal",
                 "shot_type": "wide hero shot",
                 "point": "If this develops further, a follow-up short can focus on reactions or practical impact.",
+            },
+            {
+                "title": "On the ground",
+                "setting": "narrow market alley or riverside walk with local textures, banners, and warm practical lights",
+                "action": f"{guide.name} reacts mid-stride while {sidekick.name} bobs beside a street-level detail",
+                "emotion": "grounded curiosity",
+                "camera_move": "handheld-style sway",
+                "shot_type": "medium tracking",
+                "point": "On-the-street energy helps viewers feel the topic in everyday space.",
+            },
+            {
+                "title": "By the numbers",
+                "setting": "abstract infographic stage with glowing bars, simple charts, and soft bokeh",
+                "action": f"{guide.name} gestures toward animated numbers while {sidekick.name} pings highlights",
+                "emotion": "clear and confident",
+                "camera_move": "slow arc around the data",
+                "shot_type": "wide",
+                "point": "A quick quantitative angle makes the trend easier to trust at a glance.",
+            },
+            {
+                "title": "Before you go",
+                "setting": "quiet rooftop at blue hour with city lights and a calm horizon",
+                "action": f"{guide.name} gives a final warm sign-off while {sidekick.name} nestles in frame",
+                "emotion": "friendly closure",
+                "camera_move": "gentle pull back",
+                "shot_type": "medium wide",
+                "point": "A soft outro invites saves and follows without hard selling.",
             },
         ]
         for index in range(scene_count):
@@ -140,7 +167,7 @@ class TemplateContentProvider(BaseContentProvider):
                     index=index + 1,
                     title=str(beat["title"]),
                     visual_prompt=visual_prompt,
-                    narration=f"{hook if index == 0 else point} Source context: {source_names}.",
+                    narration=f"{hook if index == 0 else point}",
                     caption=point,
                     duration_seconds=per_scene,
                     setting=str(beat["setting"]),
