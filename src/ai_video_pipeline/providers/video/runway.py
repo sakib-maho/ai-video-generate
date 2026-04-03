@@ -13,6 +13,15 @@ from ...models import VideoRenderRequest, VideoRenderResult
 from ...utils import ensure_dir, retry_call, run_command
 from .base import BaseVideoProvider
 
+# Prepended to scene text when topic.content_angle == "funny_cartoon" (Runway image-to-video).
+# Tuned toward premium vertical 3D CGI shorts (Pixar/Disney-style), not Ken Burns on stills.
+_FUNNY_CARTOON_RUNWAY_PREFIX = (
+    "Premium 3D CGI animated short, theatrical feature quality: rounded appealing characters, saturated "
+    "colors, soft cinematic sunlight, shallow depth of field. Full-body animation—running, walking, head turns, "
+    "expressive faces; hair/clothes secondary motion; props and crowds move subtly. Continuous 3D motion—not "
+    "a static frame or slideshow. Camera: dynamic follow, dolly, or light handheld energy. Playful comedy timing. "
+)
+
 
 class RunwayVideoProvider(BaseVideoProvider):
     name = "runway"
@@ -40,9 +49,13 @@ class RunwayVideoProvider(BaseVideoProvider):
         if thumbnail_seed and not thumbnail_seed.exists():
             thumbnail_seed = None
 
+        funny_cartoon = getattr(request.topic, "content_angle", None) == "funny_cartoon"
+        if funny_cartoon:
+            notes.append("Runway prompt: funny_cartoon motion prefix applied to each scene.")
+
         for scene in request.script.scenes:
             seed_image = self._pick_seed_image(scene.index, scene_seed_images, character_seed_images, thumbnail_seed, work_dir, request)
-            prompt_text = (scene.animation_prompt or scene.visual_prompt or scene.narration).strip()[:1000]
+            prompt_text = self._runway_prompt_text(request, scene)
             task_id = self._create_image_to_video_task(
                 prompt_image=self._to_data_uri(seed_image),
                 prompt_text=prompt_text,
@@ -99,6 +112,14 @@ class RunwayVideoProvider(BaseVideoProvider):
         if not self.available():
             raise RuntimeError("RUNWAY_API_KEY is not configured.")
         return {"provider": self.name, "status": "configured", "model": self.model}
+
+    def _runway_prompt_text(self, request: VideoRenderRequest, scene) -> str:
+        base = (scene.animation_prompt or scene.visual_prompt or scene.narration or "").strip()
+        if getattr(request.topic, "content_angle", None) == "funny_cartoon":
+            prefix = _FUNNY_CARTOON_RUNWAY_PREFIX
+            room = max(0, 1000 - len(prefix))
+            return (prefix + base[:room])[:1000]
+        return base[:1000]
 
     def _request(self, method: str, path: str, body: dict | None = None) -> dict:
         data = json.dumps(body).encode("utf-8") if body is not None else None

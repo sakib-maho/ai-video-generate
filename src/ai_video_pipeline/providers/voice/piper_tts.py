@@ -17,6 +17,7 @@ class PiperTTSVoiceProvider(BaseVoiceProvider):
             "en": os.environ.get("PIPER_MODEL_EN", "").strip(),
             "ja": os.environ.get("PIPER_MODEL_JA", "").strip(),
             "bn": os.environ.get("PIPER_MODEL_BN", "").strip(),
+            "hi": os.environ.get("PIPER_MODEL_HI", "").strip(),
         }
 
     def available(self) -> bool:

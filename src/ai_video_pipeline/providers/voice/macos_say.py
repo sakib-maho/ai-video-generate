@@ -43,6 +43,8 @@ class MacOSSayVoiceProvider(BaseVoiceProvider):
             return "Eddy (Japanese (Japan))"
         if language == "bn":
             return "Aman"
+        if language == "hi":
+            return "Lekha"
         return "Eddy (English (US))"
 
     def _prepare_text(self, text: str, language: str) -> str:
@@ -51,4 +53,6 @@ class MacOSSayVoiceProvider(BaseVoiceProvider):
             ascii_text = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode("ascii")
             cleaned = " ".join(ascii_text.replace("।", ". ").split())
             return cleaned or "Bangladesh daily video update."
+        if language == "hi":
+            return " ".join(text.split())
         return " ".join(text.split())

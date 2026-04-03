@@ -29,12 +29,40 @@ class SlideshowVideoProvider(BaseVideoProvider):
     def _scene_frame_count(self, duration_seconds: float) -> int:
         return max(3, int(round(float(duration_seconds) * _FPS)))
 
-    def _cartoon_motion_vf(self, *, frames: int, with_image: bool) -> str:
-        """Ken Burns + drift; cartoon punch via saturation, mild sharpen, vignette."""
-        # zoompan `d` = number of output frames — was `1` before, which killed all motion.
-        drift_x = f"iw/2-(iw/zoom/2)+48*sin(on*0.045)"
-        drift_y = f"ih/2-(ih/zoom/2)+36*cos(on*0.052)"
+    @staticmethod
+    def _motion_high_energy(request: VideoRenderRequest) -> bool:
+        return getattr(request.topic, "content_angle", None) == "funny_cartoon"
+
+    def _ken_burns_params(self, high_energy: bool) -> tuple[str, str, str]:
+        if high_energy:
+            drift_x = "iw/2-(iw/zoom/2)+72*sin(on*0.062)"
+            drift_y = "ih/2-(ih/zoom/2)+58*cos(on*0.071)"
+            zoom_expr = "if(eq(on,0),1,min(zoom+0.00028,1.38))"
+            return drift_x, drift_y, zoom_expr
+        drift_x = "iw/2-(iw/zoom/2)+48*sin(on*0.045)"
+        drift_y = "ih/2-(ih/zoom/2)+36*cos(on*0.052)"
         zoom_expr = "if(eq(on,0),1,min(zoom+0.00018,1.28))"
+        return drift_x, drift_y, zoom_expr
+
+    def _polish_parts(self, high_energy: bool) -> list[str]:
+        if high_energy:
+            return [
+                "format=yuv420p",
+                "eq=saturation=1.35:contrast=1.12:brightness=0.04",
+                "unsharp=5:5:0.95:3:3:0.0",
+                "vignette=angle=PI/4:eval=frame:dither=1",
+            ]
+        return [
+            "format=yuv420p",
+            "eq=saturation=1.22:contrast=1.08:brightness=0.03",
+            "unsharp=5:5:0.8:3:3:0.0",
+            "vignette=angle=PI/4:eval=frame:dither=1",
+        ]
+
+    def _cartoon_motion_vf(self, *, frames: int, with_image: bool, high_energy: bool = False) -> str:
+        """Ken Burns + drift; cartoon punch via saturation, mild sharpen, vignette."""
+        drift_x, drift_y, zoom_expr = self._ken_burns_params(high_energy)
+        polish = self._polish_parts(high_energy)
         if with_image:
             base = [
                 "scale=1080:1920:force_original_aspect_ratio=increase",
@@ -51,18 +79,21 @@ class SlideshowVideoProvider(BaseVideoProvider):
                     f":s=1080x1920:fps={_FPS}"
                 ),
             ]
-        # "Reel" look: saturated, crisp edges, soft vignette; floating shapes keep energy on fallbacks.
-        polish = [
-            "format=yuv420p",
-            "eq=saturation=1.22:contrast=1.08:brightness=0.03",
-            "unsharp=5:5:0.8:3:3:0.0",
-            "vignette=angle=PI/4:eval=frame:dither=1",
-        ]
         return ",".join(base + polish)
 
-    def _abstract_overlay_vf(self, scene_index: int) -> str:
+    def _abstract_overlay_vf(self, scene_index: int, *, high_energy: bool = False) -> str:
         base_color = "0x0f172a" if scene_index % 2 else "0x1d4ed8"
         accent_color = "0xf97316" if scene_index % 2 else "0x22c55e"
+        if high_energy:
+            return ",".join(
+                [
+                    f"drawbox=x='-260+mod(t*320,1600)':y=120:w=360:h=360:color=white@0.1:t=fill",
+                    f"drawbox=x='840-mod(t*240,1550)':y=1220:w=300:h=300:color={accent_color}@0.2:t=fill",
+                    "drawbox=x='120+75*sin(t*1.55)':y='900+45*cos(t*1.35)':w=820:h=8:color=white@0.2:t=fill",
+                    f"drawbox=x=58:y=100:w=964:h=1590:color={accent_color}@0.06:t=8",
+                    "drawbox=x='210+115*sin(t*0.85)':y='280+85*cos(t*0.95)':w=210:h=210:color=white@0.07:t=fill",
+                ]
+            )
         return ",".join(
             [
                 f"drawbox=x='-260+mod(t*210,1600)':y=120:w=360:h=360:color=white@0.08:t=fill",
@@ -95,6 +126,9 @@ class SlideshowVideoProvider(BaseVideoProvider):
         scene_durations: list[float] = []
         notes: list[str] = []
         character_sheet_images = [Path(path) for path in request.character_sheet_image_paths if Path(path).exists()]
+        high = self._motion_high_energy(request)
+        if high:
+            notes.append("High-energy motion (funny_cartoon): stronger Ken Burns + overlays.")
 
         for scene in request.script.scenes:
             video_path = work_dir / f"scene_{scene.index}.mp4"
@@ -109,7 +143,7 @@ class SlideshowVideoProvider(BaseVideoProvider):
                 fallback_character_image = character_sheet_images[(scene.index - 1) % len(character_sheet_images)]
 
             base_color = "0x0f172a" if scene.index % 2 else "0x1d4ed8"
-            vf_parts = self._abstract_overlay_vf(scene.index)
+            vf_parts = self._abstract_overlay_vf(scene.index, high_energy=high)
 
             video_command = [
                 ffmpeg_bin,
@@ -118,7 +152,7 @@ class SlideshowVideoProvider(BaseVideoProvider):
             if scene_image_path:
                 motion_filter = ",".join(
                     [
-                        self._cartoon_motion_vf(frames=frames, with_image=True),
+                        self._cartoon_motion_vf(frames=frames, with_image=True, high_energy=high),
                         vf_parts,
                     ]
                 )
@@ -136,9 +170,8 @@ class SlideshowVideoProvider(BaseVideoProvider):
                 )
             elif fallback_character_image:
                 notes.append(f"Scene {scene.index} rendered from character-sheet fallback.")
-                drift_x = f"iw/2-(iw/zoom/2)+48*sin(on*0.045)"
-                drift_y = f"ih/2-(ih/zoom/2)+36*cos(on*0.052)"
-                zoom_expr = "if(eq(on,0),1,min(zoom+0.00018,1.28))"
+                drift_x, drift_y, zoom_expr = self._ken_burns_params(high)
+                polish = self._polish_parts(high)
                 motion_filter = ",".join(
                     [
                         "scale=1080:1920:force_original_aspect_ratio=decrease",
@@ -147,10 +180,7 @@ class SlideshowVideoProvider(BaseVideoProvider):
                             f"zoompan=z='{zoom_expr}':d={frames}:x='{drift_x}':y='{drift_y}'"
                             f":s=1080x1920:fps={_FPS}"
                         ),
-                        "format=yuv420p",
-                        "eq=saturation=1.22:contrast=1.08:brightness=0.03",
-                        "unsharp=5:5:0.8:3:3:0.0",
-                        "vignette=angle=PI/4:eval=frame:dither=1",
+                        *polish,
                         vf_parts,
                     ]
                 )
@@ -170,7 +200,7 @@ class SlideshowVideoProvider(BaseVideoProvider):
                 notes.append(f"Scene {scene.index} rendered with abstract motion fallback.")
                 motion_filter = ",".join(
                     [
-                        self._cartoon_motion_vf(frames=frames, with_image=False),
+                        self._cartoon_motion_vf(frames=frames, with_image=False, high_energy=high),
                         vf_parts,
                     ]
                 )

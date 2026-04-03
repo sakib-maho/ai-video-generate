@@ -1,0 +1,13 @@
+# Optional local image→video (Stable Video Diffusion). Install in project venv when needed:
+#   .venv/bin/pip install -r scripts/requirements-local-i2v.txt
+# First run downloads several GB from Hugging Face.
+
+torch>=2.1.0
+torchvision>=0.16.0
+diffusers>=0.30.0
+transformers>=4.40.0
+accelerate>=0.30.0
+safetensors>=0.4.0
+pillow>=10.0.0
+imageio[ffmpeg]>=2.34.0
+numpy>=1.26.0

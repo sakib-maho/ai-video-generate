@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from ...models import CharacterDesign, Scene, ScriptPackage, SelectedTopic, SeoPackage, StoryboardBeat, ThumbnailPackage
-from ...utils import retry_call
+from ...utils import funny_cartoon_angle_directive, retry_call, script_language_directive, seo_language_directive
 from .base import BaseContentProvider
 
 
@@ -37,6 +37,8 @@ class OpenAIContentProvider(BaseContentProvider):
             "Avoid presenting uncertain claims as confirmed facts.\n"
             "Create one recurring host character and optionally one sidekick/motif for consistent animation across scenes.\n"
             "Every scene must be visually specific, animated, and suitable for image-to-video generation.\n"
+            f"{script_language_directive(topic.language)}"
+            f"{funny_cartoon_angle_directive() if getattr(topic, 'content_angle', None) == 'funny_cartoon' else ''}"
             "JSON schema:\n"
             "{"
             '"hook":"string",'
@@ -79,6 +81,7 @@ class OpenAIContentProvider(BaseContentProvider):
             f"Tone: {topic.tone}\n"
             f"Topic: {topic.candidate.title}\n"
             f"Script summary: {script.summary}\n"
+            f"{seo_language_directive(topic.language)}"
             "JSON schema:\n"
             "{"
             '"title_options":["string","string","string","string","string"],'

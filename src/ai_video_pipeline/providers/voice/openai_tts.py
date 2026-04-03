@@ -20,6 +20,7 @@ class OpenAITTSVoiceProvider(BaseVoiceProvider):
             "en": os.environ.get("OPENAI_TTS_VOICE_EN", "alloy").strip(),
             "ja": os.environ.get("OPENAI_TTS_VOICE_JA", "alloy").strip(),
             "bn": os.environ.get("OPENAI_TTS_VOICE_BN", "alloy").strip(),
+            "hi": os.environ.get("OPENAI_TTS_VOICE_HI", "alloy").strip(),
         }
 
     def available(self) -> bool:
@@ -66,7 +67,15 @@ class OpenAITTSVoiceProvider(BaseVoiceProvider):
 
     def _instruction_for_language(self, language: str) -> str:
         if language == "bn":
-            return "Speak in natural Bangla with smooth pacing and warm, credible narration."
+            return (
+                "The script is in Bengali (Bangla). Read it aloud in clear, natural Bangladeshi Bangla pronunciation. "
+                "Do not translate to English. Maintain warm, credible short-video narration pacing."
+            )
+        if language == "hi":
+            return (
+                "The script is in Hindi (Devanagari). Read it in clear, natural Hindi pronunciation. "
+                "Do not translate to English. Use credible short-video narration pacing."
+            )
         if language == "ja":
             return "Speak naturally in Japanese with clean pacing and a credible short-video narration tone."
         return "Speak naturally with modern, credible short-video narration pacing."

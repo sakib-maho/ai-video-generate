@@ -25,7 +25,8 @@
     "evergreen_fallback": true,
     "visual_mode": "cartoon_animated_short",
     "visual_style": "stylized 3D cartoon animation",
-    "animation_provider_mode": "image_to_video"
+    "animation_provider_mode": "image_to_video",
+    "voiceover_sync_pad_seconds": 0.75
   },
   "countries": [
     {
@@ -45,13 +46,15 @@
       ],
       "trends_feeds": [
         "https://trends.google.com/trends/trendingsearches/daily/rss?geo=BD"
-      ]
+      ],
+      "tone_override": "playful cartoon comedy, family-safe slapstick and visual gags",
+      "content_angle": "funny_cartoon"
     },
     {
       "name": "japan",
       "label": "Japan",
-      "default_language": "bn",
-      "languages": ["bn", "ja", "en"],
+      "default_language": "ja",
+      "languages": ["ja", "en"],
       "enabled": true,
       "videos_per_day": 1,
       "news_feeds": [
@@ -65,6 +68,25 @@
       "trends_feeds": [
         "https://trends.google.com/trends/trendingsearches/daily/rss?geo=JP"
       ]
+    },
+    {
+      "name": "india",
+      "label": "India",
+      "default_language": "hi",
+      "languages": ["en", "hi"],
+      "enabled": false,
+      "videos_per_day": 1,
+      "news_feeds": [
+        "https://news.google.com/rss/search?q=India&hl=en-IN&gl=IN&ceid=IN:en",
+        "https://www.thehindu.com/news/national/?service=rss",
+        "https://indianexpress.com/section/india/feed/"
+      ],
+      "reddit_feeds": [
+        "https://www.reddit.com/r/india/hot.json?limit=10"
+      ],
+      "trends_feeds": [
+        "https://trends.google.com/trends/trendingsearches/daily/rss?geo=IN"
+      ]
     }
   ],
   "providers": {
@@ -73,8 +95,8 @@
       "fallback": ["gemini", "template"]
     },
     "video": {
-      "primary": "runway",
-      "fallback": ["slideshow", "sora", "kling", "pika"]
+      "primary": "slideshow",
+      "fallback": ["runway", "sora", "kling", "pika"]
     }
   }
 }

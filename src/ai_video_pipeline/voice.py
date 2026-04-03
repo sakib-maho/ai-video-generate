@@ -33,3 +33,18 @@ class VoiceService:
         if self.providers["noop"] not in ordered:
             ordered.append(self.providers["noop"])
         return ordered
+
+    def ordered_providers_for_language(self, language: str) -> list[BaseVoiceProvider]:
+        """Bangla: prefer Gemini TTS (Sulafat) when a key exists; other languages keep OpenAI first."""
+        if language in {"bn", "hi"}:
+            order = ["gemini_tts", "openai_tts", "piper_tts", "macos_say", "noop"]
+        else:
+            order = ["openai_tts", "gemini_tts", "piper_tts", "macos_say", "noop"]
+        ordered: list[BaseVoiceProvider] = []
+        for name in order:
+            provider = self.providers.get(name)
+            if provider and provider.available() and provider not in ordered:
+                ordered.append(provider)
+        if self.providers["noop"] not in ordered:
+            ordered.append(self.providers["noop"])
+        return ordered

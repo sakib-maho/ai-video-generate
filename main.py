@@ -25,6 +25,14 @@ def build_parser() -> argparse.ArgumentParser:
         "--approve-date",
         help="Approve and render a pending review packet for the given run date (YYYY-MM-DD)",
     )
+    parser.add_argument(
+        "--country",
+        action="append",
+        dest="countries",
+        metavar="NAME",
+        help="Run only this country (config `name`, e.g. bangladesh). Repeat for multiple. "
+        "If omitted, all enabled countries run.",
+    )
     return parser
 
 
@@ -45,7 +53,11 @@ def main() -> int:
         return 0
 
     if args.run_now:
-        pipeline.run(use_sample_data=args.sample_run)
+        try:
+            pipeline.run(use_sample_data=args.sample_run, countries=args.countries)
+        except ValueError as exc:
+            print(exc, file=sys.stderr)
+            return 1
         return 0
 
     run_scheduler(pipeline)

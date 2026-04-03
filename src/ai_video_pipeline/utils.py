@@ -10,6 +10,59 @@ from pathlib import Path
 from typing import Any, Callable, TypeVar
 
 
+def script_language_directive(language: str) -> str:
+    """Prompt suffix so script JSON uses the target language (required for correct TTS)."""
+    if language == "bn":
+        return (
+            "LANGUAGE (mandatory): Write ALL spoken and on-screen copy in Bengali (Bangla) using Bengali script (বাংলা). "
+            "This includes hook, summary, every scene title/narration/caption, voiceover_script, the captions array, and cta. "
+            "Do not use English for those strings. Use English only inside visual_prompt/animation_prompt if needed for image models.\n"
+        )
+    if language == "ja":
+        return (
+            "LANGUAGE (mandatory): Write ALL spoken and on-screen copy in Japanese (日本語), including hook, summary, "
+            "scene narration/captions, voiceover_script, captions, and cta. English only where unavoidable for loanwords.\n"
+        )
+    if language == "hi":
+        return (
+            "LANGUAGE (mandatory): Write ALL spoken and on-screen copy in Hindi using Devanagari script (हिन्दी). "
+            "This includes hook, summary, every scene title/narration/caption, voiceover_script, captions array, and cta. "
+            "Do not use English for those strings. English only inside visual_prompt/animation_prompt if needed for image models.\n"
+        )
+    return (
+        "LANGUAGE: Use natural English for hook, narration, voiceover_script, captions, and cta.\n"
+    )
+
+
+def funny_cartoon_angle_directive() -> str:
+    """Extra prompt for funny, high-energy cartoon shorts (paired with content_angle=funny_cartoon)."""
+    return (
+        "CONTENT ANGLE (mandatory): Treat this as a FUNNY cartoon comedy short — family-safe, playful, exaggerated "
+        "reactions, light slapstick, visual gags, and comic timing. Avoid grim or purely serious news tone; "
+        "reframe the topic into cartoon hijinks while staying respectful. "
+        "Visual target: premium 3D CGI (theatrical/Pixar-like polish), bright inviting lighting, readable "
+        "environments (markets, streets, homes). Emphasize bouncy motion, expressive poses, and clear silhouettes "
+        "in visual_prompt and animation_prompt.\n"
+    )
+
+
+def seo_language_directive(language: str) -> str:
+    """Prompt suffix for SEO metadata language."""
+    if language == "bn":
+        return (
+            "Write title_options, final_title, description, hashtags, and platform tags for a Bangladesh audience; "
+            "prefer Bengali (Bangla script) for titles/description/hashtags where natural.\n"
+        )
+    if language == "ja":
+        return "Write title_options, final_title, description, and tags primarily in Japanese.\n"
+    if language == "hi":
+        return (
+            "Write title_options, final_title, description, hashtags, and platform tags for a Hindi-speaking audience; "
+            "prefer Hindi in Devanagari for titles/description/hashtags where natural.\n"
+        )
+    return ""
+
+
 STOPWORDS = {
     "the",
     "a",
@@ -158,11 +211,53 @@ def discover_font(language: str) -> str | None:
             "/Library/Fonts/NotoSansBengali-Regular.ttf",
             "/System/Library/Fonts/Supplemental/Arial Unicode.ttf",
         ],
+        "hi": [
+            os.environ.get("FONT_PATH_DEVANAGARI", ""),
+            "/Library/Fonts/NotoSansDevanagari-Regular.ttf",
+            "/System/Library/Fonts/Supplemental/Arial Unicode.ttf",
+        ],
     }
     for item in candidates.get(language, candidates["en"]):
         if item and Path(item).exists():
             return item
     return None
+
+
+def ffprobe_duration_seconds(path: Path) -> float | None:
+    """Return audio/video duration in seconds using ffprobe, or None on failure."""
+    ffprobe_bin = os.environ.get("FFPROBE_BIN", "ffprobe")
+    cmd = [
+        ffprobe_bin,
+        "-v",
+        "error",
+        "-show_entries",
+        "format=duration",
+        "-of",
+        "default=noprint_wrappers=1:nokey=1",
+        str(path),
+    ]
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, check=False, timeout=120)
+        if result.returncode != 0:
+            return None
+        line = (result.stdout or "").strip().splitlines()[0] if result.stdout else ""
+        if not line or line == "N/A":
+            return None
+        return float(line)
+    except (ValueError, OSError, subprocess.TimeoutExpired):
+        return None
+
+
+def slideshow_stitched_duration_seconds(scene_durations: list[float]) -> float:
+    """Approximate final video length from slideshow (sum of scenes minus xfade overlaps)."""
+    n = len(scene_durations)
+    if n == 0:
+        return 0.0
+    xfade = float(os.environ.get("SLIDESHOW_XFADE_SECONDS", "0.35"))
+    trans = min(xfade, max(0.0, min(scene_durations) * 0.4)) if n else 0.0
+    if n > 1 and trans > 0.05 and xfade > 0:
+        return float(sum(scene_durations)) - (n - 1) * trans
+    return float(sum(scene_durations))
 
 
 def run_command(command: list[str], cwd: Path | None = None) -> subprocess.CompletedProcess[str]:

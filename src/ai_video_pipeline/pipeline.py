@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -11,6 +12,7 @@ from .images import SceneImageService
 from .logging_utils import PipelineLogger
 from .models import (
     CharacterDesign,
+    CountryConfig,
     CountryRunArtifacts,
     FactCheckReport,
     PipelineConfig,
@@ -28,19 +30,31 @@ from .models import (
 from .storage import Storage
 from .thumbnail import ThumbnailRenderer
 from .trends import TrendDiscoveryService
-from .utils import ensure_dir, now_local, slugify, write_json, write_text
+from .utils import (
+    ensure_dir,
+    ffprobe_duration_seconds,
+    now_local,
+    slideshow_stitched_duration_seconds,
+    slugify,
+    write_json,
+    write_text,
+)
 from .video import VideoService
 from .voice import VoiceService
 
 
 EVERGREEN_TOPICS: dict[str, dict[str, str]] = {
     "bangladesh": {
-        "title": "How daily life in Bangladesh is changing with new digital services",
-        "why_trending": "Evergreen fallback focused on practical change, public interest, and easy visual storytelling.",
+        "title": "When a cartoon rickshaw and a cheeky street cat swap jobs for a day",
+        "why_trending": "Evergreen cartoon-comedy hook: playful characters, visual gags, and family-safe slapstick.",
     },
     "japan": {
         "title": "Why everyday technology trends in Japan keep shaping global attention",
         "why_trending": "Evergreen fallback focused on explainable tech and culture signals with safe short-form appeal.",
+    },
+    "india": {
+        "title": "How Indian cities are adapting to faster digital public services",
+        "why_trending": "Evergreen fallback focused on practical change, public interest, and safe short-form visuals.",
     },
 }
 
@@ -57,12 +71,22 @@ class DailyVideoPipeline:
         self.video_service = VideoService(project_root)
         self.voice_service = VoiceService(project_root)
 
-    def run(self, use_sample_data: bool = False) -> dict[str, Any]:
+    def run(self, use_sample_data: bool = False, *, countries: list[str] | None = None) -> dict[str, Any]:
         run_date = now_local().date().isoformat()
         output_dir = ensure_dir(self.project_root / self.config.output_root / run_date)
         logger = PipelineLogger(output_dir, self.config.log_level)
         discovery = TrendDiscoveryService(project_root=self.project_root, logger=logger)
         run_id = self.storage.create_run(run_date=run_date, mode=self.config.mode)
+        country_filter = self._resolve_country_filter(countries, logger)
+        if country_filter is not None:
+            enabled_names = {c.name for c in self.config.countries if c.enabled}
+            skipped = country_filter - enabled_names
+            for name in sorted(skipped):
+                logger.warning(f"Country {name!r} is disabled in config — skipped.")
+            country_filter &= enabled_names
+            if not country_filter:
+                raise ValueError("No requested countries are enabled in config.")
+            logger.info(f"Country filter active: {sorted(country_filter)}")
         logger.info(f"Starting pipeline for {run_date} in {self.config.mode} mode")
         provider_status = self.check_providers(logger=logger, raise_on_error=False)
 
@@ -78,6 +102,8 @@ class DailyVideoPipeline:
             artifacts: dict[str, CountryRunArtifacts] = {}
             for country in self.config.countries:
                 if not country.enabled:
+                    continue
+                if country_filter is not None and country.name not in country_filter:
                     continue
 
                 candidates = discovery.discover(country=country, use_sample_data=use_sample_data)
@@ -190,6 +216,29 @@ class DailyVideoPipeline:
             logger.event("provider_check", status)
         return status
 
+    def _tone_for_country(self, country: CountryConfig) -> str:
+        return country.tone_override or self.config.global_defaults.tone
+
+    def _resolve_country_filter(self, countries: list[str] | None, logger: PipelineLogger) -> set[str] | None:
+        """If `countries` is set, return configured `name`s to include (case-insensitive). Else all."""
+        if not countries:
+            return None
+        known_by_lower = {c.name.lower(): c.name for c in self.config.countries}
+        resolved: set[str] = set()
+        for raw in countries:
+            key = raw.strip().lower()
+            if key in known_by_lower:
+                resolved.add(known_by_lower[key])
+            else:
+                logger.warning(
+                    f"Unknown country {raw!r} — not in config. Valid: {sorted(known_by_lower.values())}"
+                )
+        if not resolved:
+            raise ValueError(
+                "No valid --country names. Use identifiers from config (e.g. bangladesh, japan)."
+            )
+        return resolved
+
     def _select_topic(self, country_name: str, candidates: list[TopicCandidate]) -> SelectedTopic | None:
         country = next(item for item in self.config.countries if item.name == country_name)
 
@@ -212,8 +261,9 @@ class DailyVideoPipeline:
             return SelectedTopic(
                 candidate=fresh_candidates[0],
                 language=country.default_language,
-                tone=self.config.global_defaults.tone,
+                tone=self._tone_for_country(country),
                 duration_seconds=self.config.global_defaults.script_duration_seconds,
+                content_angle=country.content_angle,
             )
 
         fallback_candidates = [
@@ -226,8 +276,9 @@ class DailyVideoPipeline:
             return SelectedTopic(
                 candidate=fallback_candidates[0],
                 language=country.default_language,
-                tone=self.config.global_defaults.tone,
+                tone=self._tone_for_country(country),
                 duration_seconds=self.config.global_defaults.script_duration_seconds,
+                content_angle=country.content_angle,
             )
         return None
 
@@ -257,8 +308,9 @@ class DailyVideoPipeline:
         return SelectedTopic(
             candidate=candidate,
             language=country.default_language,
-            tone=self.config.global_defaults.tone,
+            tone=self._tone_for_country(country),
             duration_seconds=self.config.global_defaults.script_duration_seconds,
+            content_angle=country.content_angle,
         )
 
     def _fact_check_candidates(self, candidates: list[TopicCandidate], logger: PipelineLogger) -> None:
@@ -325,11 +377,14 @@ class DailyVideoPipeline:
             thumbnail.source_image_path = str(character_sheet_image_paths[0])
         thumbnail = self.thumbnail_renderer.render(thumbnail, country_dir, selected.language)
 
-        subtitles_path = country_dir / "captions.srt"
-        self._write_subtitles(subtitles_path, script)
         voiceover_path = None
         if self.config.global_defaults.enable_voiceover:
             voiceover_path = self._generate_voiceover(country_dir, selected, script, logger)
+            if voiceover_path:
+                self._sync_scene_durations_to_voiceover(script, voiceover_path, logger)
+
+        subtitles_path = country_dir / "captions.srt"
+        self._write_subtitles(subtitles_path, script)
 
         write_json(country_dir / "topic.json", to_dict(selected.candidate))
         write_json(
@@ -477,6 +532,46 @@ class DailyVideoPipeline:
         )
         logger.info(f"Rendered {artifact.selected_topic.candidate.country} video using {result.provider_name}")
 
+    def _sync_scene_durations_to_voiceover(
+        self,
+        script: ScriptPackage,
+        voiceover_path: Path,
+        logger: PipelineLogger,
+    ) -> None:
+        """Scale scene durations so slideshow (+xfade) is at least voiceover length (ffmpeg -shortest was cutting audio)."""
+        audio_dur = ffprobe_duration_seconds(voiceover_path)
+        if audio_dur is None:
+            logger.warning("Could not read voiceover duration via ffprobe; scene lengths unchanged.")
+            return
+        scenes = script.scenes
+        if not scenes:
+            return
+        pad = float(self.config.global_defaults.voiceover_sync_pad_seconds)
+        target = audio_dur + pad
+        durs = [float(s.duration_seconds) for s in scenes]
+        current = slideshow_stitched_duration_seconds(durs)
+        if current >= target:
+            logger.info(
+                f"Voiceover {audio_dur:.2f}s fits in video timeline (~{current:.2f}s); no scene stretch."
+            )
+            return
+        sum_d = sum(durs)
+        if sum_d <= 0:
+            return
+        n = len(durs)
+        xfade = float(os.environ.get("SLIDESHOW_XFADE_SECONDS", "0.35"))
+        trans = min(xfade, max(0.0, min(durs) * 0.4)) if n > 1 else 0.0
+        use_xfade = n > 1 and trans > 0.05 and xfade > 0
+        new_sum = target + (n - 1) * trans if use_xfade else target
+        scale = new_sum / sum_d
+        for s in scenes:
+            s.duration_seconds = round(float(s.duration_seconds) * scale, 3)
+        new_vid = slideshow_stitched_duration_seconds([float(s.duration_seconds) for s in scenes])
+        logger.info(
+            f"Stretched scene durations so video (~{new_vid:.2f}s) covers full voiceover "
+            f"({audio_dur:.2f}s + {pad}s pad); scale={scale:.3f}"
+        )
+
     def _generate_voiceover(
         self,
         country_dir: Path,
@@ -486,7 +581,7 @@ class DailyVideoPipeline:
     ) -> Path | None:
         script_path = country_dir / "voiceover_script.txt"
         write_text(script_path, script.voiceover_script)
-        for provider in self.voice_service.ordered_providers():
+        for provider in self.voice_service.ordered_providers_for_language(selected.language):
             if provider.name == "noop":
                 logger.warning(f"No voice provider available for {selected.candidate.country}; rendering without voiceover")
                 return None
@@ -606,6 +701,7 @@ class DailyVideoPipeline:
             language=payload["selected_topic"]["language"],
             tone=payload["selected_topic"]["tone"],
             duration_seconds=payload["selected_topic"]["duration_seconds"],
+            content_angle=payload["selected_topic"].get("content_angle"),
         )
         script = ScriptPackage(
             hook=payload["script"]["hook"],

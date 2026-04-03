@@ -23,6 +23,7 @@ class GeminiTTSVoiceProvider(BaseVoiceProvider):
             "en": os.environ.get("GEMINI_TTS_VOICE_EN", "Kore").strip(),
             "ja": os.environ.get("GEMINI_TTS_VOICE_JA", "Kore").strip(),
             "bn": os.environ.get("GEMINI_TTS_VOICE_BN", "Sulafat").strip(),
+            "hi": os.environ.get("GEMINI_TTS_VOICE_HI", "Kore").strip(),
         }
         self.style_map = {
             "en": os.environ.get(
@@ -37,6 +38,10 @@ class GeminiTTSVoiceProvider(BaseVoiceProvider):
                 "GEMINI_TTS_STYLE_BN",
                 "প্রাকৃতিক বাংলাদেশি বাংলা উচ্চারণে, উষ্ণ কিন্তু বিশ্বাসযোগ্য নিউজ-স্টাইল ভয়েসে পড়ুন।",
             ).strip(),
+            "hi": os.environ.get(
+                "GEMINI_TTS_STYLE_HI",
+                "स्पष्ट, प्राकृतिक हिंदी उच्चारण में, भरोसेमंद न्यूज़-स्टाइल आवाज़ में पढ़ें।",
+            ).strip(),
         }
 
     def available(self) -> bool:
@@ -45,7 +50,7 @@ class GeminiTTSVoiceProvider(BaseVoiceProvider):
     def synthesize(self, *, text: str, language: str, output_path: Path) -> Path:
         voice_name = self.voice_map.get(language, self.voice_map["en"])
         style = self.style_map.get(language, self.style_map["en"])
-        chunks = split_sentences(text, max_chars=220 if language == "bn" else 260) or [text.strip()]
+        chunks = split_sentences(text, max_chars=220 if language in {"bn", "hi"} else 260) or [text.strip()]
         pcm_chunks: list[bytes] = []
         for chunk in chunks:
             prompt = (

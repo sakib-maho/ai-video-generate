@@ -31,6 +31,13 @@ LANGUAGE_STRINGS = {
         "description": "{country}-এ {topic} এখন আলোচনায়। কী ঘটেছে, কেন ট্রেন্ড করছে, আর মানুষ কীভাবে প্রতিক্রিয়া দিচ্ছে তা এই শর্টে সংক্ষেপে দেখানো হয়েছে।",
         "thumb": "{topic}\nকেন ট্রেন্ডিং?",
     },
+    "hi": {
+        "hook": "अचानक सब {topic} की चर्चा क्यों कर रहे हैं?",
+        "scene_open": "यही मुख्य अपडेट है।",
+        "cta": "ऐसे भरोसेमंद ट्रेंड अपडेट के लिए फॉलो करें।",
+        "description": "{country} में {topic} अभी चर्चा में है। क्या हुआ, क्यों ट्रेंड कर रहा है, और लोग कैसे प्रतिक्रिया दे रहे हैं—यह शॉर्ट में संक्षेप में।",
+        "thumb": "{topic}\nक्यों ट्रेंड?",
+    },
 }
 
 
@@ -52,6 +59,7 @@ class TemplateContentProvider(BaseContentProvider):
             "en": "Mina",
             "ja": "Mina",
             "bn": "মীনা",
+            "hi": "मीना",
         }.get(topic.language, "Mina")
         guide = CharacterDesign(
             name=host_name,

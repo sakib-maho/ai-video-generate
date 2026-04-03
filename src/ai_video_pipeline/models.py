@@ -31,6 +31,10 @@ class CountryConfig:
     news_feeds: list[str]
     reddit_feeds: list[str]
     trends_feeds: list[str]
+    tone_override: str | None = None
+    """If set, replaces global_defaults.tone for this country."""
+    content_angle: str | None = None
+    """e.g. funny_cartoon — steers script + slideshow motion."""
 
 
 @dataclass(slots=True)
@@ -59,6 +63,8 @@ class GlobalDefaults:
     visual_mode: str = "cartoon_animated_short"
     visual_style: str = "stylized 3D cartoon animation"
     animation_provider_mode: str = "image_to_video"
+    # When TTS is longer than scene clips, pipeline scales durations so video covers full audio (+ pad).
+    voiceover_sync_pad_seconds: float = 0.75
 
 
 @dataclass(slots=True)
@@ -135,6 +141,7 @@ class SelectedTopic:
     language: str
     tone: str
     duration_seconds: int
+    content_angle: str | None = None
 
 
 @dataclass(slots=True)

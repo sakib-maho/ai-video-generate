@@ -25,6 +25,13 @@ class SceneImageService:
             return []
         sheets_dir = ensure_dir(output_dir / "character_sheets")
         generated: list[Path] = []
+        funny_3d = getattr(selected, "content_angle", None) == "funny_cartoon"
+        funny_style = (
+            "Aesthetic: high-end theatrical 3D animation appeal (Pixar/Disney-quality character design)—rounded "
+            "forms, large expressive eyes, appealing materials, warm saturated palette. "
+            if funny_3d
+            else ""
+        )
         for index, character in enumerate(script.character_sheet, start=1):
             prompt = (
                 f"Create a full-body vertical character sheet for a stylized 3D cartoon short.\n"
@@ -36,6 +43,7 @@ class SceneImageService:
                 f"Wardrobe: {character.wardrobe}\n"
                 f"Personality: {character.personality}\n"
                 f"Consistency rule: {character.consistency_prompt}\n"
+                f"{funny_style}"
                 "Style: polished animated feature-film concept art, expressive face, clean turnaround-ready framing, vibrant but tasteful color design, soft cinematic lighting, no text, no watermark."
             )
             output_path = sheets_dir / f"character_{index:02d}_{character.name.lower().replace(' ', '_')}.png"
@@ -52,6 +60,13 @@ class SceneImageService:
         images_dir = ensure_dir(output_dir / "scene_images")
         generated: list[Path] = []
         character_context = " ".join(character.consistency_prompt for character in script.character_sheet)
+        funny_3d = getattr(selected, "content_angle", None) == "funny_cartoon"
+        funny_scene = (
+            "Shot like a frame from a premium 3D animated film: bright daylight, festive or lively setting when it fits "
+            "(market, street fair, neighborhood), energetic poses implying motion—running, reaching, reacting. "
+            if funny_3d
+            else ""
+        )
         for scene in script.scenes:
             prompt = (
                 f"Create a cinematic vertical scene visual for a short-form animated video.\n"
@@ -61,6 +76,7 @@ class SceneImageService:
                 f"Scene intent: {scene.visual_prompt}\n"
                 f"Characters: {', '.join(scene.characters) if scene.characters else 'none specified'}\n"
                 f"Character consistency: {character_context}\n"
+                f"{funny_scene}"
                 "Style: stylized 3D cartoon movie frame, consistent recurring characters, expressive action pose, shallow depth of field, clean composition, no captions, no watermarks, no copyrighted footage, high contrast."
             )
             output_path = images_dir / f"scene_{scene.index:02d}.png"

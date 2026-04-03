@@ -93,6 +93,12 @@ For a reproducible local demo without network access:
 python main.py --run-now --sample-run
 ```
 
+Run a single country (uses the `name` field from `config/config.yaml`, e.g. `bangladesh`):
+
+```bash
+python main.py --run-now --country bangladesh
+```
+
 ### 4. Run as scheduler
 
 ```bash
@@ -182,7 +188,7 @@ The pipeline always prioritizes a finished deliverable. If OpenAI or another pre
 
 When `OPENAI_API_KEY` is available, the pipeline also attempts to generate per-scene still images with the OpenAI image API and animates those images in the final vertical video before falling back to abstract motion scenes.
 
-When `RUNWAY_API_KEY` is available, the pipeline prefers Runway for scene-level image-to-video generation. It uses the generated scene images first, then character sheets, then a local placeholder seed frame if no image provider is available.
+By default, `config/config.yaml` uses `slideshow` (FFmpeg) for final video—**no Runway account is required**. If you add `RUNWAY_API_KEY` and set `providers.video.primary` to `runway`, the pipeline uses Runway for scene-level image-to-video. It uses generated scene images first, then character sheets, then a local placeholder seed frame if no image is available.
 
 If voiceover generation fails or no provider key is configured, the video still renders and the run is logged with a warning instead of failing outright.
 
