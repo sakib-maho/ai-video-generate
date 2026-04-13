@@ -9,6 +9,44 @@ _Part of the `sakib-maho` project showcase series with consistent documentation 
 
 Production-oriented Python pipeline for generating daily short-form videos from trend signals, with support for Bangladesh and Japan outputs.
 
+## Quick Start
+
+```bash
+git clone https://github.com/sakib-maho/ai-video-generate.git
+cd ai-video-generate
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env
+```
+
+Update:
+
+- `config/config.yaml`
+- `.env`
+
+Then run once:
+
+```bash
+python main.py --run-now
+```
+
+Offline/sample run:
+
+```bash
+python main.py --run-now --sample-run
+```
+
+Single country run:
+
+```bash
+python main.py --run-now --country bangladesh
+```
+
+## License
+
+MIT (see `LICENSE` if present).
+
 ## What This Project Does
 
 Each run can:
@@ -44,40 +82,6 @@ The system is designed to degrade gracefully:
 ├── tests/
 ├── main.py
 └── requirements.txt
-```
-
-## Quick Start
-
-```bash
-git clone https://github.com/sakib-maho/ai-video-generate.git
-cd ai-video-generate
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env
-```
-
-Update:
-
-- `config/config.yaml`
-- `.env`
-
-Then run once:
-
-```bash
-python main.py --run-now
-```
-
-Offline/sample run:
-
-```bash
-python main.py --run-now --sample-run
-```
-
-Single country run:
-
-```bash
-python main.py --run-now --country bangladesh
 ```
 
 ## Scheduler
@@ -141,7 +145,3 @@ python -m unittest discover -s tests -v
 - Never commit `.env`
 - Keep API keys in local environment variables only
 - Output and local DB artifacts are ignored via `.gitignore`
-
-## License
-
-MIT (see `LICENSE` if present).
