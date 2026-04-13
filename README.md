@@ -1,5 +1,12 @@
 # AI Video Generate
 
+<!-- BrandCloud:readme-standard -->
+[![Maintained](https://img.shields.io/badge/Maintained-yes-brightgreen.svg)](#)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Showcase](https://img.shields.io/badge/Portfolio-Showcase-blue.svg)](#)
+
+_Part of the `sakib-maho` project showcase series with consistent documentation and quality standards._
+
 Production-oriented Python pipeline for generating daily short-form videos from trend signals, with support for Bangladesh and Japan outputs.
 
 ## What This Project Does
